@@ -31,5 +31,8 @@ int main() {
     delete numero1;
     delete numero2;
     delete son_iguales;
+    delete es_mayor;
+    delete es_menor;
+    delete son_diferentes;
     return 0;
 }
