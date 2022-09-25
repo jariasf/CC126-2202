@@ -38,6 +38,14 @@ int main() {
             (*extranjera)++;
 
         cout << "\n";
+		
+		// Borramos memoria debido a que estamos dentro de un ciclo y
+		// en el ciclo hacemos uso de new al momento de ingresar los datos
+		// Para evitar estos problemas, el ingreso puede ser implementado
+		// con variables asignadas en la pila
+        delete tipo_noticia;
+        delete hora_publicacion;
+        delete origen;		
         tipo_noticia = ingresarTipoDeNoticia();
     }
 
@@ -52,8 +60,6 @@ int main() {
     imprimirNoticiaMasPredominante(nacional, extranjera);
 
     delete tipo_noticia;
-    delete origen;
-    delete hora_publicacion;
     delete deportes;
     delete actualidad;
     delete entretenimiento;
