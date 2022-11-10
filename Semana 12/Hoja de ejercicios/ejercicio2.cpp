@@ -34,6 +34,12 @@ int main() {
     cout << "\nDatos ordenados\n";
     mostrarDatos(personas, n);
 
+    // TODO: El promedio de gasto según cada género
+
+
+    // TODO: El promedio de gasto según la edad
+
+
     delete[] personas;
 
     return 0;
@@ -71,10 +77,27 @@ void intercambiar(Persona& x, Persona& y) {
     y = tmp;
 }
 
+// Actual i = 5, Nuevo j = 7
 bool hacerIntercambio(Persona actual, Persona nueva) {
     // Ordenamiento sea de forma ascendente por sexo
+    // Actual -> genero M         Nuevo -> genero F
     if (nueva.sexo < actual.sexo) {
+        // F < M 
+        // Nuevo->genero F        Actual -> genero M
         return true;
+    }
+    else if (nueva.sexo == actual.sexo) {
+        // Ordenar de forma ascendente por monto en caso tengan el mismo género
+        if (nueva.monto < actual.monto) {
+            return true;
+        }
+        /*
+        // Ordenar de forma descendente por edad en caso tengan el mismo género y monto
+        else if (nueva.monto == actual.monto) {
+            if (nueva.edad > actual.edad) {
+                return true;
+            }
+        }*/
     }
     return false;
 }
