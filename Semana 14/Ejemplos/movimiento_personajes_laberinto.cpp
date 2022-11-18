@@ -4,8 +4,8 @@
 using namespace std;
 using namespace System;
 
-#define ANCHO_CONSOLA 60
-#define ALTO_CONSOLA 30
+#define ANCHO_CONSOLA 100
+#define ALTO_CONSOLA 40
 #define COLUMNAS 60
 #define FILAS 30
 #define ARRIBA 72
@@ -13,6 +13,8 @@ using namespace System;
 #define IZQUIERDA 75
 #define DERECHA 77
 #define ESCAPE 27
+#define X_UL 5 //(x upper-left)
+#define Y_UL 3 //(y upper-left)
 
 enum {
     BLACK,
@@ -36,9 +38,14 @@ enum {
 // Ejemplo de definición de laberinto
 struct Laberinto {
     int** matriz;
+    int x, y;
     int filas, columnas;
 };
 
+struct Rectangulo {
+    int x, y;
+    int alto, ancho;
+};
 
 struct Personaje {
     int alto;
@@ -48,7 +55,8 @@ struct Personaje {
     double dx, dy; // Direccion y tamaño de paso
     double velocidad{1};
     bool mover;
-    bool vivo;
+    bool activo;
+    int vidas;
     string* cuerpo;
 };
 
@@ -59,7 +67,6 @@ void gotoxy(int, int);
 void colorear(int);
 //void inicializarLaberinto(int[FILAS][COLUMNAS]);
 void inicializarLaberinto(int**, int, int);
-void mostrarPersonaje(Personaje);
 void mostrarPersonaje(Personaje*);
 void limpiarMemoriaPersonaje(Personaje*);
 void borrarPersonaje(Personaje*);
@@ -70,6 +77,9 @@ void inicializarEnemigo(Personaje*);
 bool esMovimientoValido(Personaje*, int**, int, int);
 void simularJuegoLaberinto(int**, int, int);
 void cambiarDireccion(Personaje*);
+bool intersectan(Rectangulo*, Rectangulo*);
+bool intersectan(Personaje*, Personaje*);
+void mostrarInformacionDelJuego(Personaje*);
 
 int main() {
     configurar();
@@ -93,6 +103,12 @@ int main() {
     return 0;
 }
 
+void mostrarInformacionDelJuego(Personaje* principal) {
+    colorear(GREEN);
+    gotoxy(5, Y_UL + COLUMNAS + 5);
+    cout << "Juego "<<principal->x<<","<<principal->y << endl;
+}
+
 void simularJuegoLaberinto(int** laberinto, int filas, int columnas) {
 
     mostrarLaberinto(laberinto, filas, columnas);
@@ -107,9 +123,9 @@ void simularJuegoLaberinto(int** laberinto, int filas, int columnas) {
 
     inicializarPersonaje(principal);
     inicializarEnemigo(enemigo);
-    if( principal -> vivo)
+    if( principal -> activo)
         mostrarPersonaje(principal);
-    if( enemigo -> vivo)
+    if( enemigo -> activo)
         mostrarPersonaje(enemigo);
 
     while (1) {
@@ -136,9 +152,12 @@ void simularJuegoLaberinto(int** laberinto, int filas, int columnas) {
                 principal->dx = -1;
                 principal->dy = 0;
             }
+            else if (tecla == ESCAPE) {
+                break;
+            }
         }
 
-        if (principal->vivo) {
+        if (principal->activo) {
             if (principal->mover) {
                 if (esMovimientoValido(principal, laberinto, filas, columnas)) {
                     moverPersonaje(principal);
@@ -146,7 +165,7 @@ void simularJuegoLaberinto(int** laberinto, int filas, int columnas) {
             }
         }
 
-        if (enemigo->vivo) {
+        if (enemigo->activo) {
             if (enemigo->mover) {
                 if (esMovimientoValido(enemigo, laberinto, filas, columnas)) {
                     moverPersonaje(enemigo);
@@ -155,15 +174,19 @@ void simularJuegoLaberinto(int** laberinto, int filas, int columnas) {
                     cambiarDireccion(enemigo);
                 }
             }
+            if (principal->activo && intersectan(principal, enemigo)) {
+                borrarPersonaje(enemigo);
+                enemigo->activo = false;
+            }
         }
 
         time(&tiempo_fin);
         int duracion = tiempo_fin - tiempo_inicio;
         // Mostrar enemigo luego de 5 segundos
         if (duracion == 5) {
-            enemigo->vivo = true;
+            enemigo->activo = true;
         }
-
+        mostrarInformacionDelJuego(principal);
         _sleep(50);
     }
 
@@ -180,7 +203,7 @@ void inicializarPersonaje(Personaje* personaje) {
     personaje->alto = 3;
     personaje->ancho = 3;
     personaje->color = YELLOW;
-    personaje->vivo = true;
+    personaje->activo = true;
     personaje->cuerpo = new string[3]{
         "("+ string(1, 1) + ")",
         "-|-",
@@ -197,7 +220,7 @@ void inicializarEnemigo(Personaje* personaje) {
     personaje->dy = 1;
     personaje->mover = true;
     personaje->color = GREEN;
-    personaje->vivo = false;
+    personaje->activo = false;
     personaje->velocidad = 0.5; // velocidad
     personaje->cuerpo = new string[3]{
         "<o ",
@@ -211,27 +234,48 @@ void limpiarMemoriaPersonaje(Personaje* personaje) {
     delete personaje;
 }
 
-/*
 bool intersectan(Rectangulo* r1, Rectangulo* r2) {
-    return false;
-}*/
+    /*
+      r1 = {1, 1, 3, 3}   r2 = {1, 2, 4, 3}
+      return true si intersectan, false si no
+
+      (l1_x,l1_y)
+          -------- 
+         |        |
+         |        |
+         |        |
+         |        |
+         |________| (r1_x,r1_y)
+    */
+    int l1_x = r1->x, l1_y = r1 -> y;
+    int r1_x = r1->x + r1->alto - 1, r1_y = r1->y + r1->ancho - 1;
+
+    int l2_x = r2->x, l2_y = r2->y;
+    int r2_x = r2->x + r2->alto - 1, r2_y = r2->y + r2->ancho - 1;
+
+    if (l2_y > r1_y || l1_y > r2_y) return false;
+    if (r1_x < l2_x || r2_x < l1_x) return false;
+
+    return true;
+}
 
 bool intersectan(Personaje* p1, Personaje* p2) {
-    return false;
+    Rectangulo* r1 = new Rectangulo{(int)p1->x, (int)p1->y, p1->alto, p1->ancho};
+    Rectangulo* r2 = new Rectangulo{(int)p2->x, (int)p2->y, p2->alto, p2->ancho };
+    bool flag= intersectan(r1, r2);
+    delete r1; delete r2;
+    return flag;
 }
 
-void mostrarPersonaje(Personaje personaje) {
-    colorear(personaje.color);
-    for (int i = 0; i < personaje.alto; ++i) {
-        gotoxy(personaje.x + i, personaje.y);
-        cout << personaje.cuerpo[i];
-    }
-}
+/*
+bool intersectan(Personaje* p1, Bala* bala) {
+
+}*/
 
 void mostrarPersonaje(Personaje* personaje) {
     colorear(personaje->color);
     for (int i = 0; i < personaje->alto; ++i) {
-        gotoxy(personaje->x + i, personaje->y);
+        gotoxy(X_UL + personaje->x + i, Y_UL + personaje->y);
         cout << personaje->cuerpo[i];
     }
 }
@@ -239,7 +283,7 @@ void mostrarPersonaje(Personaje* personaje) {
 void borrarPersonaje(Personaje* personaje) {
     for (int i = 0; i < personaje->alto; ++i) {
         for (int j = 0; j < personaje->ancho; ++j) {
-            gotoxy(personaje->x + i, personaje->y + j);
+            gotoxy(X_UL + personaje->x + i, Y_UL + personaje->y + j);
             cout << " ";
         }
     }
@@ -308,7 +352,7 @@ void configurar() {
 void mostrarLaberinto(int** laberinto, int filas, int columnas) {
     for (int i = 0; i < filas; ++i) {
         for (int j = 0; j < columnas; ++j) {
-            gotoxy(i, j);
+            gotoxy(X_UL + i, Y_UL + j);
             if (laberinto[i][j] == 1) colorear(RED);
             else if (laberinto[i][j] == 0) colorear(BLACK);
             else if (laberinto[i][j] == 2) colorear(GREEN);
